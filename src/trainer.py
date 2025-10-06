@@ -6,7 +6,6 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 from typing import Dict, List, Optional, Tuple
 import numpy as np
-from tqdm import tqdm
 
 
 class Trainer:
@@ -39,8 +38,7 @@ class Trainer:
             self.optimizer,
             mode='min',
             factor=0.5,
-            patience=5,
-            verbose=True
+            patience=5
         )
         
         self.history = {

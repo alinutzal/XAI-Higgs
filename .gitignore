@@ -206,14 +206,19 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 
-# Project specific
+# Project specific - data files
 data/*.csv
 data/*.csv.gz
 data/*.h5
 data/*.hdf5
+
+# Project specific - large model files
 models/*.pth
 models/*.pt
-*.png
-*.jpg
-*.jpeg
-*.pdf
+
+# Keep .gitkeep files but not figure files in figures directory
+figures/*.png
+figures/*.jpg
+figures/*.jpeg
+figures/*.pdf
+!figures/.gitkeep
