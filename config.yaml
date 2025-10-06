@@ -1,0 +1,94 @@
+# Configuration for XAI-Higgs experiments
+
+# Data settings
+data:
+  path: "data/HIGGS.csv"
+  n_samples: 50000  # Number of samples to use (null for all)
+  test_split: 0.2
+  val_split: 0.1
+  random_seed: 42
+
+# Model settings
+model:
+  type: "simple"  # Options: simple, standard, deep
+  input_dim: 28
+  
+  # Standard model architecture
+  standard:
+    hidden_dims: [128, 64, 32]
+    dropout_rate: 0.3
+  
+  # Simple model architecture
+  simple:
+    hidden_dim: 64
+  
+  # Deep model is pre-configured in models.py
+
+# Training settings
+training:
+  batch_size: 128
+  learning_rate: 0.001
+  weight_decay: 1e-5
+  epochs: 50
+  early_stopping_patience: 10
+
+# XAI settings
+xai:
+  n_test_samples: 500  # Number of test samples for XAI analysis
+  n_background_samples: 100  # Background samples for SHAP
+  
+  shap:
+    enabled: true
+    max_display: 20
+  
+  lime:
+    enabled: true
+    num_features: 10
+  
+  integrated_gradients:
+    enabled: true
+    n_steps: 50
+  
+  deeplift:
+    enabled: true
+  
+  gradient_shap:
+    enabled: false  # Optional, more computationally expensive
+
+# Output settings
+output:
+  model_dir: "models"
+  figure_dir: "figures"
+  save_format: "png"
+  dpi: 300
+
+# Feature names
+features:
+  - lepton_pT
+  - lepton_eta
+  - lepton_phi
+  - missing_energy_magnitude
+  - missing_energy_phi
+  - jet_1_pt
+  - jet_1_eta
+  - jet_1_phi
+  - jet_1_b-tag
+  - jet_2_pt
+  - jet_2_eta
+  - jet_2_phi
+  - jet_2_b-tag
+  - jet_3_pt
+  - jet_3_eta
+  - jet_3_phi
+  - jet_3_b-tag
+  - jet_4_pt
+  - jet_4_eta
+  - jet_4_phi
+  - jet_4_b-tag
+  - m_jj
+  - m_jjj
+  - m_lv
+  - m_jlv
+  - m_bb
+  - m_wbb
+  - m_wwbb
