@@ -133,18 +133,29 @@ def plot_feature_distributions(
         n_features: Number of features to plot
         save_path: Path to save figure
     """
+    # Handle 3D data by flattening or taking first timestep
+    if len(X_signal.shape) == 3:
+        if X_signal.shape[-1] == 1:
+            X_signal = X_signal.squeeze(-1)
+        X_signal = X_signal[:, 0] if X_signal.ndim > 2 else X_signal.reshape(X_signal.shape[0], -1)
+    
+    if len(X_background.shape) == 3:
+        if X_background.shape[-1] == 1:
+            X_background = X_background.squeeze(-1)
+        X_background = X_background[:, 0] if X_background.ndim > 2 else X_background.reshape(X_background.shape[0], -1)
+    
     n_rows = (n_features + 2) // 3
     fig, axes = plt.subplots(n_rows, 3, figsize=(15, 4*n_rows))
     axes = axes.flatten()
     
-    for i in range(min(n_features, len(feature_names))):
+    for i in range(min(n_features, len(feature_names), X_signal.shape[1])):
         ax = axes[i]
         
         ax.hist(X_background[:, i], bins=50, alpha=0.5, label='Background', 
                 color='blue', density=True)
         ax.hist(X_signal[:, i], bins=50, alpha=0.5, label='Signal', 
                 color='red', density=True)
-        ax.set_xlabel(feature_names[i], fontsize=10)
+        ax.set_xlabel(feature_names[i] if i < len(feature_names) else f'Feature {i}', fontsize=10)
         ax.set_ylabel('Density', fontsize=10)
         ax.legend(fontsize=8)
         ax.grid(True, alpha=0.3)
@@ -208,8 +219,21 @@ def plot_feature_correlation(
         feature_names: List of feature names
         save_path: Path to save figure
     """
+    # Handle 3D data
+    if len(X.shape) == 3:
+        if X.shape[-1] == 1:
+            X = X.squeeze(-1)
+        # Take first timestep or flatten
+        X = X[:, 0] if X.ndim > 2 else X.reshape(X.shape[0], -1)
+    
     # Compute correlation matrix
     correlation = np.corrcoef(X.T)
+    
+    # Ensure feature names match
+    if len(feature_names) < X.shape[1]:
+        feature_names = feature_names + [f'Feature_{i}' for i in range(len(feature_names), X.shape[1])]
+    elif len(feature_names) > X.shape[1]:
+        feature_names = feature_names[:X.shape[1]]
     
     plt.figure(figsize=(12, 10))
     sns.heatmap(correlation, 
@@ -283,25 +307,63 @@ def plot_attribution_heatmap(
 ):
     """
     Plot heatmap of attributions for multiple samples.
+    Automatically handles 2D and 3D attribution arrays.
     
     Args:
-        attributions: Attribution values (n_samples, n_features)
+        attributions: Attribution values (2D or 3D array)
         feature_names: List of feature names
         n_samples: Number of samples to display
         save_path: Path to save figure
     """
-    # Select subset of samples
-    n_samples = min(n_samples, attributions.shape[0])
-    sample_indices = np.linspace(0, attributions.shape[0]-1, n_samples, dtype=int)
-    attr_subset = attributions[sample_indices]
+    print(f"Input attributions shape: {attributions.shape}")
     
-    plt.figure(figsize=(14, 8))
+    # Handle 3D attributions (e.g., from time series models)
+    if len(attributions.shape) == 3:
+        print(f"Detected 3D attributions: {attributions.shape}")
+        
+        if attributions.shape[-1] == 1:
+            # Case: (n_samples, n_timesteps, 1) -> squeeze last dimension
+            attributions_2d = attributions.squeeze(-1)
+            print(f"Squeezed to 2D: {attributions_2d.shape}")
+        else:
+            # Case: (n_samples, n_timesteps, n_features) -> flatten
+            attributions_2d = attributions.reshape(attributions.shape[0], -1)
+            print(f"Flattened to 2D: {attributions_2d.shape}")
+            
+            # Expand feature names for time series
+            n_timesteps = attributions.shape[1]
+            feature_names = [f"{name}_t{t}" for t in range(n_timesteps) for name in feature_names]
+    else:
+        attributions_2d = attributions
+    
+    print(f"Final 2D shape: {attributions_2d.shape}")
+    
+    # Select subset of samples
+    n_samples = min(n_samples, attributions_2d.shape[0])
+    sample_indices = np.linspace(0, attributions_2d.shape[0]-1, n_samples, dtype=int)
+    attr_subset = attributions_2d[sample_indices]
+    
+    # Ensure feature_names matches the number of features
+    n_features = attr_subset.shape[1]
+    if len(feature_names) > n_features:
+        feature_names = feature_names[:n_features]
+    elif len(feature_names) < n_features:
+        feature_names = feature_names + [f'Feature_{i}' for i in range(len(feature_names), n_features)]
+    
+    print(f"Plotting heatmap: {attr_subset.shape} with {len(feature_names)} features")
+    
+    # Create figure with appropriate size
+    fig_height = max(8, n_features * 0.3)
+    plt.figure(figsize=(14, fig_height))
+    
     sns.heatmap(attr_subset.T, 
                 yticklabels=feature_names,
                 xticklabels=[f'Sample {i+1}' for i in range(n_samples)],
                 cmap='RdBu_r',
                 center=0,
-                cbar_kws={'label': 'Attribution'})
+                cbar_kws={'label': 'Attribution'},
+                linewidths=0.5,
+                linecolor='gray')
     plt.title('Feature Attributions Across Samples', fontsize=14)
     plt.xlabel('Sample', fontsize=12)
     plt.ylabel('Feature', fontsize=12)
@@ -309,5 +371,79 @@ def plot_attribution_heatmap(
     
     if save_path:
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        print(f"Heatmap saved to {save_path}")
+    
+    plt.show()
+
+
+def plot_timeseries_attribution_heatmap(
+    attributions: np.ndarray,
+    feature_names: List[str],
+    n_samples: int = 20,
+    save_path: Optional[str] = None
+):
+    """
+    Plot heatmap specifically for time series attributions.
+    Shows time on x-axis and features on y-axis.
+    
+    Args:
+        attributions: Attribution values (3D: n_samples, n_timesteps, n_features)
+        feature_names: List of feature names
+        n_samples: Number of samples to average over
+        save_path: Path to save figure
+    """
+    print(f"Input attributions shape: {attributions.shape}")
+    
+    if len(attributions.shape) != 3:
+        print("This function expects 3D input (n_samples, n_timesteps, n_features)")
+        print("Using standard heatmap instead...")
+        return plot_attribution_heatmap(attributions, feature_names, n_samples, save_path)
+    
+    # Average over samples
+    if len(attributions) > n_samples:
+        sample_indices = np.random.choice(len(attributions), n_samples, replace=False)
+        attr_subset = attributions[sample_indices]
+    else:
+        attr_subset = attributions
+    
+    # Average: (n_samples, n_timesteps, n_features) -> (n_timesteps, n_features)
+    attr_avg = attr_subset.mean(axis=0)
+    
+    if attr_avg.shape[1] == 1:
+        # Single feature: just show time series
+        attr_avg = attr_avg.squeeze(-1)
+        
+        plt.figure(figsize=(14, 6))
+        plt.plot(attr_avg)
+        plt.xlabel('Time Step', fontsize=12)
+        plt.ylabel('Attribution', fontsize=12)
+        plt.title(f'Average Attribution Over Time (averaged over {len(attr_subset)} samples)', fontsize=14)
+        plt.grid(True, alpha=0.3)
+        
+    else:
+        # Multiple features: show heatmap with time on x-axis and features on y-axis
+        plt.figure(figsize=(14, max(6, len(feature_names) * 0.4)))
+        
+        sns.heatmap(
+            attr_avg.T,  # Transpose: features as rows, timesteps as columns
+            yticklabels=feature_names,
+            xticklabels=range(attr_avg.shape[0]),
+            cmap='RdBu_r',
+            center=0,
+            cbar_kws={'label': 'Mean Attribution'},
+            linewidths=0.5,
+            linecolor='gray'
+        )
+        
+        plt.title(f'Mean Attributions Over Time (averaged over {len(attr_subset)} samples)', 
+                 fontsize=14, pad=20)
+        plt.xlabel('Time Step', fontsize=12)
+        plt.ylabel('Feature', fontsize=12)
+    
+    plt.tight_layout()
+    
+    if save_path:
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        print(f"Time series heatmap saved to {save_path}")
     
     plt.show()
