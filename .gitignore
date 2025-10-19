@@ -213,11 +213,11 @@ data/*.h5
 data/*.hdf5
 
 # Project specific - large model files
-models/*.pth
+!models/*.pth
 models/*.pt
 
 # Keep .gitkeep files but not figure files in figures directory
-figures/*.png
+!figures/*.png
 figures/*.jpg
 figures/*.jpeg
 figures/*.pdf
