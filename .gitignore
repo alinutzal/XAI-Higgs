@@ -222,3 +222,5 @@ figures/*.jpg
 figures/*.jpeg
 figures/*.pdf
 !figures/.gitkeep
+
+.idea
